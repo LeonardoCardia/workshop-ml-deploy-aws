@@ -7,10 +7,12 @@ import string
 
 import joblib
 from fastapi import FastAPI
+from fastapi.responses import FileResponse
 from nltk.corpus import stopwords
 from nltk.tokenize import word_tokenize
 from pydantic import BaseModel
 from pathlib import Path
+
 
 # Diretório raiz do projeto
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -54,3 +56,14 @@ def predict(dados: Comentario):
     features = extrair_features(dados.comentario)
     sentimento = modelo.classify(features)
     return {"sentimento": sentimento}
+
+# Disponibilizar a interface HTML na página inicial
+@app.get("/")
+def pagina_inicial():
+    html_path = (
+        Path(__file__).resolve().parent.parent
+        / "app_client"
+        / "index.html"
+    )
+
+    return FileResponse(html_path)

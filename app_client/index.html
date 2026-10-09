@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Análise de Sentimentos | Workshop AWS</title>
+  <style>
+    /* Uma única página, sem frameworks, bibliotecas externas ou instalação. */
+    :root { color-scheme: light; font-family: system-ui, -apple-system, "Segoe UI", sans-serif; }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; min-height: 100vh; display: grid; place-items: center;
+      padding: 24px; background: linear-gradient(135deg, #f2f5fb, #fff8ee);
+      color: #1b2638;
+    }
+    main { width: min(100%, 680px); background: white; border: 1px solid #e2e6ee;
+      box-shadow: 0 18px 48px rgba(20, 35, 60, .09); border-radius: 22px; padding: 32px; }
+    .eyebrow { color: #9d5b00; font-size: 12px; letter-spacing: .12em;
+      font-weight: 800; text-transform: uppercase; }
+    h1 { margin: 8px 0 10px; font-size: clamp(27px, 4vw, 36px); letter-spacing: -.035em; }
+    .intro { color: #5b687b; line-height: 1.6; margin: 0 0 26px; }
+    label { display: block; font-weight: 700; font-size: 14px; margin-bottom: 9px; }
+    textarea { width: 100%; min-height: 116px; resize: vertical; border: 1px solid #c5cedc;
+      border-radius: 12px; padding: 14px 16px; font: inherit; line-height: 1.45;
+      background: #fbfcfe; color: inherit; }
+    textarea:focus { outline: 3px solid #ffe1a3; border-color: #cc8400; }
+    .row { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; margin-top: 15px; }
+    button { appearance: none; cursor: pointer; border-radius: 11px; padding: 12px 19px;
+      border: 1px solid transparent; font: inherit; font-weight: 700; }
+    #analisar { background: #ff9900; color: #18202a; }
+    #analisar:hover:not(:disabled) { background: #f3a92e; }
+    #analisar:disabled { opacity: .65; cursor: progress; }
+    #limpar { background: white; color: #4c5b70; border-color: #d4dbe5; }
+    .resultado { margin-top: 24px; border: 1px solid #e1e6ed;
+      border-radius: 14px; padding: 19px; background: #f8fafc; }
+    .resultado strong { font-size: 21px; }
+    .resultado p { margin: 8px 0 0; color: #526176; font-size: 14px; }
+    .resultado.positivo { background: #edf9f1; border-color: #b4e2c1; }
+    .resultado.negativo { background: #fff0ef; border-color: #f1c0bc; }
+    .resultado.erro { background: #fff5eb; border-color: #f5d1a5; }
+    footer { margin-top: 23px; border-top: 1px solid #edf0f4; padding-top: 18px;
+      color: #69778a; font-size: 12px; line-height: 1.5; }
+    footer a { color: #164f8c; }
+    @media (max-width: 520px) { main { padding: 22px; } .row button { flex: 1; } }
+  </style>
+</head>
+<body>
+  <main>
+    <div class="eyebrow">Workshop AWS · Machine Learning</div>
+    <h1>Análise de Sentimentos</h1>
+    <p class="intro">Envie um comentário para o modelo Naive Bayes que está rodando em uma instância Amazon EC2.</p>
+
+    <form id="formulario">
+      <label for="comentario">Comentário para analisar</label>
+      <textarea id="comentario" maxlength="1000" required
+        placeholder="Ex.: O atendimento foi excelente e o produto chegou rápido!"></textarea>
+      <div class="row">
+        <button type="submit" id="analisar">Analisar sentimento</button>
+        <button type="button" id="limpar">Limpar</button>
+      </div>
+    </form>
+
+    <section id="resultado" class="resultado" aria-live="polite" role="status">
+      <strong>Aguardando comentário</strong>
+      <p>O resultado aparecerá aqui após a predição.</p>
+    </section>
+
+    <footer>
+      Inferência realizada pela API FastAPI hospedada na AWS EC2.<br>
+      Projeto didático: as predições podem falhar. <a href="/docs">Ver documentação da API</a>.
+    </footer>
+  </main>
+
+  <script>
+    // O HTML e a API estão no MESMO servidor e na MESMA porta.
+    // Por isso, usamos "/predict" e não um IP fixo ou configuração CORS.
+    const form = document.querySelector('#formulario');
+    const comentario = document.querySelector('#comentario');
+    const resultado = document.querySelector('#resultado');
+    const analisar = document.querySelector('#analisar');
+
+    function mostrar(titulo, descricao, classe = '') {
+      // textContent impede que comentários sejam interpretados como HTML.
+      resultado.className = `resultado ${classe}`;
+      resultado.querySelector('strong').textContent = titulo;
+      resultado.querySelector('p').textContent = descricao;
+    }
+
+    form.addEventListener('submit', async (evento) => {
+      evento.preventDefault(); // Evita que a página recarregue.
+      const texto = comentario.value.trim();
+      if (!texto) return mostrar('Digite um comentário', 'O campo não pode ficar vazio.', 'erro');
+
+      analisar.disabled = true;
+      analisar.textContent = 'Analisando...';
+      mostrar('Processando...', 'Aguardando resposta do modelo na EC2.');
+
+      try {
+        // Mesmo JSON do Swagger: { "comentario": "..." }
+        const resposta = await fetch('/predict', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ comentario: texto })
+        });
+        const dados = await resposta.json();
+        if (!resposta.ok || dados.erro) throw new Error(dados.erro || 'Falha ao consultar a API.');
+
+        const rotulo = String(dados.sentimento ?? 'Indefinido');
+        const classe = rotulo.toLowerCase().includes('positiv') ? 'positivo' :
+                       rotulo.toLowerCase().includes('negativ') ? 'negativo' : '';
+        mostrar(`Sentimento: ${rotulo}`, 'Predição realizada pelo modelo hospedado na AWS.', classe);
+      } catch (erro) {
+        mostrar('Não foi possível analisar', erro.message, 'erro');
+      } finally {
+        analisar.disabled = false;
+        analisar.textContent = 'Analisar sentimento';
+      }
+    });
+
+    document.querySelector('#limpar').addEventListener('click', () => {
+      comentario.value = '';
+      mostrar('Aguardando comentário', 'O resultado aparecerá aqui após a predição.');
+      comentario.focus();
+    });
+  </script>
+</body>
+</html>
