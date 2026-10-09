@@ -10,10 +10,21 @@ from fastapi import FastAPI
 from nltk.corpus import stopwords
 from nltk.tokenize import word_tokenize
 from pydantic import BaseModel
+from pathlib import Path
+
+# Diretório raiz do projeto
+BASE_DIR = Path(__file__).resolve().parent.parent
+# Localização do modelo treinado
+MODEL_PATH = BASE_DIR / "model" / "model_sentiment.pkl"
+
 
 # 1. Cria a API e carrega o modelo UMA única vez ao iniciar o servidor.
 app = FastAPI(title="Análise de Sentimentos - Workshop AWS")
-modelo = joblib.load(Path(__file__).with_name("model_sentiment.pkl"))
+
+# Carregar o modelo
+modelo = joblib.load(MODEL_PATH)
+
+
 stop_words = set(stopwords.words("portuguese"))
 
 
