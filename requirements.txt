@@ -1,0 +1,5 @@
+# Dependencias da API de analise de sentimentos (AWS EC2)
+fastapi
+uvicorn
+nltk
+joblib
