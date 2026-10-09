@@ -13,7 +13,7 @@ from pydantic import BaseModel
 
 # 1. Cria a API e carrega o modelo UMA única vez ao iniciar o servidor.
 app = FastAPI(title="Análise de Sentimentos - Workshop AWS")
-modelo = joblib.load(Path(__file__).with_name("naive_bayes_classificador.pkl"))
+modelo = joblib.load(Path(__file__).with_name("model_sentiment.pkl"))
 stop_words = set(stopwords.words("portuguese"))
 
 
